@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4-beta
+
+- Fixed: Admin panel show/hide logic switched to jQuery `.show()` / `.hide()` / `.change()`, matching Textpattern's native preferences pattern. Previously used vanilla JS `el.hidden` which conflicted with TXP's pane system.
+
 ## 0.1.3-beta
 
 - Added: Honeypot spam filter. A hidden field is injected into every form; any submission with it filled is rejected before the captcha check runs. Off/On toggle in Admin under Spam Protection, enabled by default.

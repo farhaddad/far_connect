@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.3-beta';
+$plugin['version']     = '0.1.4-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -286,6 +286,10 @@ Do not disable the plugin before deleting it. If the plugin is disabled when del
 Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
 
 h2. Changelog
+
+h3. 0.1.4-beta
+
+* Fixed: Admin panel show/hide logic switched to jQuery @.show()@ / @.hide()@ / @.change()@, matching Textpattern's native preferences pattern. Previously used vanilla JS @el.hidden@ which conflicted with TXP's pane system.
 
 h3. 0.1.3-beta
 
