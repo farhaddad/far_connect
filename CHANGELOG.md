@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9-beta
+
+- Changed: Honeypot and delay trap settings are now silently hidden when com_connect older than 4.9.0 is installed, instead of showing a grayed-out unavailability notice.
+- Changed: Help doc now notes that honeypot and delay trap require com_connect 4.9.0+ and only appear in the admin panel when a compatible version is installed.
+
 ## 0.1.8-beta
 
 - Changed: Either/or rules table now follows Textpattern's native list table pattern exactly. Rows use checkboxes with a select-all in the header, and a `multi-edit` bar below with a dropdown and Go button for bulk delete. The × remove button is gone.

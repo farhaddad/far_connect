@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.8-beta';
+$plugin['version']     = '0.1.9-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -69,7 +69,6 @@ far_connect_honeypot_label => Honeypot spam filter
 far_connect_honeypot_field_label => Honeypot field label
 far_connect_delay_trap_label => Delay trap
 far_connect_delay_trap_range_label => Delay range (seconds)
-far_connect_spam_unavailable => Requires com_connect 4.9.0 or later. Please update com_connect to enable these features.
 EOT;
 
 if (0) {
@@ -148,6 +147,8 @@ A visible or invisible challenge that requires JavaScript. The submit button is 
 Each provider requires a *Site Key* (public, embedded in your page) and a *Secret Key* (private, used server-side to verify tokens). Get both from your provider's dashboard.
 
 h3. Honeypot
+
+*Requires com_connect 4.9.0 or later.* The Honeypot and Delay trap settings only appear in the admin panel when a compatible version of com_connect is installed.
 
 A hidden field added to every form automatically. Real users never see it. Spam bots fill in every field they find in the HTML, including hidden ones. Any submission with the honeypot field filled is silently rejected by com_connect's built-in spam protection system.
 
@@ -326,6 +327,11 @@ Do not disable the plugin before deleting it. If the plugin is disabled when del
 Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
 
 h2. Changelog
+
+h3. 0.1.9-beta
+
+* Changed: Honeypot and delay trap settings are now silently hidden when com_connect older than 4.9.0 is installed, instead of showing a grayed-out unavailability notice.
+* Changed: Help doc now notes that honeypot and delay trap require com_connect 4.9.0+ and only appear in the admin panel when a compatible version is installed.
 
 h3. 0.1.8-beta
 
@@ -2175,10 +2181,7 @@ function far_connect_step_list()
               $field('far_connect_delay_range',
                 fInput('text', 'far_connect_delay_range', $delay_range, '', '', '', INPUT_SMALL, 'far_connect_delay_range'),
                 'far_connect_delay_trap_range_label', 'far-com-delay-range', true)
-            : tag(
-                tag(gTxt('far_connect_spam_unavailable'), 'p', array('class' => 'txp-form-field-instructions')),
-                'div', array('class' => 'txp-form-field', 'inert' => 'inert')
-            )
+            : ''
         ) .
 
         tag_end('section') .

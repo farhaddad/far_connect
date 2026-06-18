@@ -5,7 +5,7 @@ A [Textpattern CMS](https://textpattern.com) plugin that extends [com_connect](h
 ## Features
 
 - **Mail delivery** — send form submissions through [Resend](https://resend.com), [Brevo](https://brevo.com), or SMTP (routes com_connect through TXP's mail adapter, enabling SMTP delivery that com_connect does not support natively). File attachments from `com_connect_file` are forwarded automatically
-- **Spam protection** — honeypot field, captcha (Cloudflare Turnstile, Google reCAPTCHA v3, hCaptcha), or both together. Works without JavaScript: the captcha is skipped and the honeypot protects the form
+- **Spam protection** — captcha (Cloudflare Turnstile, Google reCAPTCHA v3, hCaptcha), honeypot field, delay trap, or any combination. Honeypot and delay trap require com_connect 4.9.0+ and are hidden in the admin panel on older versions
 - **Form validation** — either/or rules that require at least one of a set of fields to be filled before the form can submit
 
 All three features are optional and independent. You can use far_connect for mail delivery only, spam protection only, or any combination.
@@ -47,10 +47,13 @@ Full documentation is available in the plugin's built-in help: click the **?** b
 
 | Method | Notes |
 |---|---|
-| Honeypot | Hidden field injected into every form. Enabled by default, no account required, works without JavaScript |
+| Honeypot | Hidden field injected into every form. No account required, works without JavaScript. Requires com_connect 4.9.0+ |
+| Delay trap | Hidden field added via JS after a short delay. Rejects bots that submit too fast. Requires com_connect 4.9.0+ |
 | Cloudflare Turnstile | Privacy-friendly captcha, usually no user interaction needed |
 | Google reCAPTCHA v3 | Score-based, fully invisible to users |
 | hCaptcha | Privacy-focused alternative to reCAPTCHA |
+
+Honeypot and delay trap settings only appear in the admin panel when com_connect 4.9.0 or later is installed.
 
 ## License
 
@@ -67,6 +70,11 @@ Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on
 ---
 
 ## Changelog
+
+### 0.1.9-beta
+
+- Changed: Honeypot and delay trap settings are now silently hidden when com_connect older than 4.9.0 is installed, instead of showing a grayed-out unavailability notice.
+- Changed: Help doc now notes that honeypot and delay trap require com_connect 4.9.0+ and only appear in the admin panel when a compatible version is installed.
 
 ### 0.1.8-beta
 
