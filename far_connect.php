@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.4-beta';
+$plugin['version']     = '0.1.5-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -147,13 +147,26 @@ Each provider requires a *Site Key* (public, embedded in your page) and a *Secre
 
 h3. Honeypot
 
-A hidden field added to every form that real users never see. Spam bots automatically fill in every field they find, including hidden ones. Any submission with the honeypot field filled is rejected immediately, before any captcha check runs.
+A hidden field added to every form automatically. Real users never see it. Spam bots fill in every field they find in the HTML, including hidden ones. Any submission with the honeypot field filled is silently rejected by com_connect's built-in spam protection system.
 
-The honeypot requires no third-party account and works without JavaScript. When JavaScript is disabled in the browser, the captcha widget never loads; the honeypot is the only server-side protection in that case. This means the form continues to work for users with JavaScript off: no captcha appears, but any bot that fills the honeypot is still blocked.
+The honeypot requires no third-party account and works without JavaScript. When JavaScript is disabled, the captcha widget never loads; the honeypot is the only protection in that case. Forms continue to work for no-JS users.
 
-Using both together gives layered protection: the captcha blocks JavaScript-enabled bots that would pass the honeypot, and the honeypot blocks no-JS bots that never trigger the captcha.
+Using both together gives layered protection: the captcha blocks JavaScript-enabled bots, and the honeypot catches no-JS bots that never trigger the captcha.
+
+To *disable* the honeypot, set the Honeypot spam filter toggle to Off in the Spam Protection section. When disabled, no hidden field is injected and no spam check is performed for honeypot purposes.
+
+If you have already added a manual honeypot to a form using com_connect's native tags with the field name @far_hp@, far_connect will detect it and skip automatic injection for that form. Any other field name will not be detected and both honeypots will be injected.
 
 The *Honeypot field label* setting controls the text on the hidden input as it appears in the page HTML. Choose a label that looks like a real field to bots but is not a standard autofill target for password managers. The default "Referral code" works well. Avoid common field names like "Website" or "Phone" (password managers may fill them) and avoid obvious decoy phrases like "Leave blank" (sophisticated bots skip them).
+
+h4. Adding a manual honeypot without this plugin
+
+If you prefer to manage the honeypot yourself without far_connect, you can add com_connect's native honeypot tags directly to any form template:
+
+bc(language-markup). <txp:com_connect_text hidden label="Referral code" name="office_phone" required="0" />
+<txp:com_connect_expect name="office_phone" />
+
+com_connect will automatically reject any submission where @office_phone@ is filled. The @hidden@ attribute hides the field from real users; the @label@ text is visible in the HTML source only. You can use any field name and label you like.
 
 h2. Form validation
 
@@ -286,6 +299,12 @@ Do not disable the plugin before deleting it. If the plugin is disabled when del
 Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
 
 h2. Changelog
+
+h3. 0.1.5-beta
+
+* Changed: Honeypot now uses com_connect's native @com_connect_text hidden@ and @com_connect_expect@ tags instead of custom HTML. Rejection is handled by com_connect's built-in @com_connect_verify()@ rather than far_connect's own submit hook.
+* Changed: Honeypot is skipped automatically per-form if the form already has a @com_connect_expect@ entry for the @far_hp@ field, meaning the site owner has added a manual honeypot using the same name.
+* Added: Help doc now explains how to disable the honeypot completely and how to add a manual honeypot using com_connect's native tags without far_connect.
 
 h3. 0.1.4-beta
 
@@ -756,39 +775,45 @@ function far_connect_form_widget()
     return far_connect_captcha_html();
 }
 
-// Inject honeypot field into the form (always present in HTML when enabled; no JS involvement).
+// Inject honeypot field into the form using com_connect's native expect system.
+// com_connect_verify() (hooked to comconnect.submit) rejects any submission
+// where the honeypot field is filled. We only inject if the admin toggle is on
+// AND the form does not already have a com_connect_expect entry for our field,
+// which means the site owner has added a manual honeypot using the same name.
 register_callback('far_connect_honeypot_field', 'comconnect.form');
 
 function far_connect_honeypot_field()
 {
+    global $com_connect_expect;
+
     if (!get_pref('far_connect_honeypot', '0')) {
         return '';
     }
 
-    // Positioned off-screen so real users never see or reach it.
-    // Bots read the raw HTML and fill every input they find.
-    // aria-hidden hides it from screen readers; tabindex="-1" removes it from
-    // keyboard navigation so real users cannot accidentally tab into it.
-    // Inline style is intentional: a honeypot must never depend on a stylesheet
-    // to stay hidden. If CSS fails to load, the field would become visible to
-    // real users. The inline style guarantees it is always off-screen.
-    $decoy_label = get_pref('far_connect_honeypot_field_label', 'Referral code');
+    $field_name = 'far_hp';
 
-    return tag(
-        tag(txpspecialchars($decoy_label), 'label', array('for' => 'far-hp')) .
-        tag_void('input', array(
-            'type'         => 'text',
-            'id'           => 'far-hp',
-            'name'         => 'far_hp',
-            'value'        => '',
-            'tabindex'     => '-1',
-            'autocomplete' => 'off',
-        )),
-        'div', array(
-            'style'       => 'position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden',
-            'aria-hidden' => 'true',
-        )
-    );
+    // Skip if a manual honeypot with the same name already exists in this form.
+    if (is_array($com_connect_expect) && array_key_exists($field_name, $com_connect_expect)) {
+        return '';
+    }
+
+    $label = get_pref('far_connect_honeypot_field_label', 'Referral code');
+
+    // com_connect_text renders the input and registers the field value via
+    // com_connect_store() on submission. com_connect_expect registers the field
+    // in $com_connect_expect with value=null, meaning "must be empty".
+    // com_connect_verify() (native to com_connect) checks all expected fields
+    // and calls add_comconnect_status(1) if any are filled, blocking the submit.
+    return com_connect_text(array(
+        'hidden'       => '',
+        'label'        => $label,
+        'name'         => $field_name,
+        'required'     => '0',
+        'autocomplete' => 'off',
+        'tabindex'     => '-1',
+    )) . com_connect_expect(array(
+        'name' => $field_name,
+    ));
 }
 
 
@@ -1039,14 +1064,6 @@ register_callback('far_connect_submit', 'comconnect.submit');
 
 function far_connect_submit()
 {
-    // Honeypot: reject silently if the hidden field was filled. Real users
-    // never see or reach it; bots fill every input they find in the HTML.
-    if (get_pref('far_connect_honeypot', '0') === '1' && ps('far_hp') !== '') {
-        $evaluator =& get_comconnect_evaluator();
-        $evaluator->add_comconnect_status(1);
-        return;
-    }
-
     $provider = get_pref('far_connect_captcha_provider', 'none');
     if ($provider === 'none') {
         return;
@@ -1594,16 +1611,17 @@ function far_connect_install_pophelp()
 
         . '        <item id="far_connect_honeypot" title="Honeypot spam filter"><![CDATA[' . n
         . '<h2>Honeypot spam filter</h2>' . n
-        . '<p>Adds a hidden field to every form that is invisible to real users but filled automatically by spam bots. Any submission with the field filled is silently rejected before any captcha check runs.</p>' . n
-        . '<p>The honeypot works without JavaScript and requires no provider account. When JavaScript is disabled in the browser, the captcha widget never loads; the honeypot is the only server-side protection in that case.</p>' . n
-        . '<p>Using both together gives layered protection: the captcha blocks JavaScript-enabled bots, and the honeypot blocks no-JS bots that never trigger the captcha.</p>' . n
+        . '<p>Automatically injects a hidden field into every com_connect form. Real users never see it. Spam bots fill every field they find in the HTML, including hidden ones. com_connect\'s built-in spam protection rejects any submission where the field is filled.</p>' . n
+        . '<p>Set to <strong>Off</strong> to disable completely. No hidden field will be injected and no honeypot check will run.</p>' . n
+        . '<p>Works without JavaScript and requires no provider account. When JavaScript is disabled, the captcha widget never loads and the honeypot is the only protection — forms still work for real users.</p>' . n
+        . '<p>If you have already added a manual honeypot using <code>&lt;txp:com_connect_expect name="far_hp" /&gt;</code>, far_connect will detect it and skip injection for that form.</p>' . n
         . ']]></item>' . n
 
         . '        <item id="far_connect_honeypot_field_label" title="Honeypot field label"><![CDATA[' . n
         . '<h2>Honeypot field label</h2>' . n
-        . '<p>The label text on the hidden honeypot input. This text appears in the page HTML but is never visible to real users.</p>' . n
-        . '<p>Choose a label that looks like a real form field so spam bots will fill it, but that no password manager or browser autofill tool would recognise. Avoid generic phrases like "Leave blank" or "Do not fill" as sophisticated bots are programmed to skip them.</p>' . n
-        . '<p>Good choices: <em>Referral code</em>, <em>Promo code</em>, <em>Invite code</em>. Avoid: <em>Website</em>, <em>Phone</em>, <em>Email</em> (autofill risk), or <em>Leave blank</em> (bot detection risk).</p>' . n
+        . '<p>The label text on the hidden honeypot input. Appears in the page HTML source but is never visible to real users.</p>' . n
+        . '<p>Choose a label that looks like a real field so bots will fill it, but that no password manager or browser autofill would recognise. Avoid obvious phrases like "Leave blank" — sophisticated bots are programmed to skip them.</p>' . n
+        . '<p>Good choices: <em>Referral code</em>, <em>Promo code</em>, <em>Invite code</em>. Avoid: <em>Website</em>, <em>Phone</em>, <em>Email</em> (autofill risk).</p>' . n
         . ']]></item>' . n
 
         . '        <item id="far_connect_css_inject" title="Injection method"><![CDATA[' . n
@@ -1743,7 +1761,7 @@ function far_connect_step_list()
         $pophelp_content = file_get_contents($pophelp_path);
         if (strpos($pophelp_content, 'Automatic') === false
             || strpos($pophelp_content, 'Deferred') === false
-            || strpos($pophelp_content, 'far_connect_honeypot_field_label') === false) {
+            || strpos($pophelp_content, 'com_connect_expect') === false) {
             far_connect_install_pophelp();
         }
     }

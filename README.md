@@ -68,6 +68,12 @@ Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on
 
 ## Changelog
 
+### 0.1.5-beta
+
+- Changed: Honeypot now uses com_connect's native `com_connect_text hidden` and `com_connect_expect` tags instead of custom HTML. Rejection is handled by com_connect's built-in `com_connect_verify()`.
+- Changed: Honeypot is skipped automatically per-form if the form already has a `com_connect_expect` entry for the `far_hp` field.
+- Added: Help doc now explains how to disable the honeypot completely and how to add a manual honeypot using com_connect's native tags without far_connect.
+
 ### 0.1.4-beta
 
 - Fixed: Admin panel show/hide logic switched to jQuery `.show()` / `.hide()` / `.change()`, matching Textpattern's native preferences pattern. Previously used vanilla JS `el.hidden` which conflicted with TXP's pane system.
