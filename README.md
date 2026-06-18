@@ -68,6 +68,13 @@ Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on
 
 ## Changelog
 
+### 0.1.6-beta
+
+- Added: Delay trap. A hidden field is added to the form via JavaScript after a configurable delay. Bots that submit before the delay passes are rejected by com_connect. Works alongside the honeypot for layered protection. Requires com_connect 4.9.0+.
+- Added: Delay range setting. Controls the delay in seconds before the trap field appears. Accepts a fixed number or a range (e.g. `5-15`).
+- Changed: Spam Protection admin features are now shown as a single unavailability notice when com_connect is older than 4.9.0.
+- Added: Help doc section for the delay trap, including manual usage instructions.
+
 ### 0.1.5-beta
 
 - Changed: Honeypot now uses com_connect's native `com_connect_text hidden` and `com_connect_expect` tags instead of custom HTML. Rejection is handled by com_connect's built-in `com_connect_verify()`.

@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.5-beta';
+$plugin['version']     = '0.1.6-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -68,7 +68,9 @@ far_connect_css_inject_none => Manual
 far_connect_auto_theme_label => Detect background color and apply light or dark styles?
 far_connect_honeypot_label => Honeypot spam filter
 far_connect_honeypot_field_label => Honeypot field label
-far_connect_honeypot_unavailable => Requires com_connect 4.9.0 or later. Please update com_connect to enable this feature.
+far_connect_delay_trap_label => Delay trap
+far_connect_delay_trap_range_label => Delay range (seconds)
+far_connect_spam_unavailable => Requires com_connect 4.9.0 or later. Please update com_connect to enable these features.
 EOT;
 
 if (0) {
@@ -168,6 +170,31 @@ bc(language-markup). <txp:com_connect_text hidden label="Referral code" name="of
 <txp:com_connect_expect name="office_phone" />
 
 com_connect will automatically reject any submission where @office_phone@ is filled. The @hidden@ attribute hides the field from real users; the @label@ text is visible in the HTML source only. You can use any field name and label you like.
+
+h3. Delay trap
+
+*Requires com_connect 4.9.0 or later.*
+
+A hidden field that is added to the form via JavaScript after a short delay. Any submission received before the field appears will be missing the expected value and rejected. This catches automated bots that submit forms immediately without waiting for the page to fully load.
+
+The *Delay range* setting controls how long (in seconds) before the field is added. You can specify a fixed number (e.g. @5@) or a random range (e.g. @5-15@). A random range makes timing attacks harder to predict. Real users typically take longer than the delay to fill in a contact form.
+
+The delay trap works alongside the honeypot — you can enable both at the same time for layered protection:
+
+* The honeypot catches bots that fill in every visible and hidden field
+* The delay trap catches bots that submit too quickly without waiting
+
+*Note:* The delay trap requires JavaScript. If JavaScript is disabled, the delayed field never appears, and the expected value check is not performed, so no-JS users are not affected.
+
+To disable the delay trap completely, set the toggle to Off. No delayed field will be injected.
+
+h4. Adding a delay trap manually
+
+You can also add a delay trap directly to your form template without far_connect:
+
+bc(language-markup). <txp:com_connect_text hidden label="" name="r_u_human" default="yes" expected="yes" delay="6-15" required="0" />
+
+com_connect will reject any submission where @r_u_human@ does not contain @yes@. Since the field only appears after 6–15 seconds with the value pre-filled, fast bots that submit immediately will not have the field in their payload and will be rejected.
 
 h2. Form validation
 
@@ -301,6 +328,13 @@ Alternatively, deleting the plugin while it is still *active* (enabled) will tri
 
 h2. Changelog
 
+h3. 0.1.6-beta
+
+* Added: Delay trap. A hidden field is added to the form via JavaScript after a configurable delay. Bots that submit before the delay passes are rejected by com_connect. Works alongside the honeypot for layered protection. Requires com_connect 4.9.0+.
+* Added: Delay range setting. Controls the delay in seconds before the trap field appears. Accepts a fixed number or a range (e.g. @5-15@).
+* Changed: Spam Protection admin features (honeypot and delay trap) are now shown as a single unavailability notice when com_connect is older than 4.9.0, rather than individual grayed-out fields.
+* Added: Help doc section for the delay trap, including manual usage instructions.
+
 h3. 0.1.5-beta
 
 * Changed: Honeypot now uses com_connect's native @com_connect_text hidden@ and @com_connect_expect@ tags instead of custom HTML. Rejection is handled by com_connect's built-in @com_connect_verify()@ rather than far_connect's own submit hook.
@@ -407,6 +441,8 @@ function far_connect_install()
         'far_connect_auto_theme'           => '1',
         'far_connect_honeypot'             => '1',
         'far_connect_honeypot_field_label' => 'Referral code',
+        'far_connect_delay_trap'           => '0',
+        'far_connect_delay_range'          => '5-15',
     ];
     foreach ($prefs as $name => $default) {
         if (get_pref($name) === false) {
@@ -808,6 +844,33 @@ function far_connect_honeypot_field()
         'tabindex'     => '-1',
     )) . com_connect_expect(array(
         'name' => $field_name,
+    ));
+}
+
+
+// Inject a delayed hidden field using com_connect's native delay + expected system.
+// The field appears via JavaScript after N seconds with a known default value.
+// Bots that submit the form immediately (before the delay) will not have this field
+// in the payload, so the expected value check fails and the submission is rejected.
+// Requires com_connect 4.9.0+.
+register_callback('far_connect_delay_trap', 'comconnect.form');
+
+function far_connect_delay_trap()
+{
+    if (!function_exists('com_connect_expect') || !get_pref('far_connect_delay_trap', '0')) {
+        return '';
+    }
+
+    $delay = get_pref('far_connect_delay_range', '5-15');
+
+    return com_connect_text(array(
+        'hidden'   => '',
+        'label'    => '',
+        'name'     => 'far_dt',
+        'default'  => '1',
+        'expected' => '1',
+        'delay'    => $delay,
+        'required' => '0',
     ));
 }
 
@@ -1619,6 +1682,20 @@ function far_connect_install_pophelp()
         . '<p>Good choices: <em>Referral code</em>, <em>Promo code</em>, <em>Invite code</em>. Avoid: <em>Website</em>, <em>Phone</em>, <em>Email</em> (autofill risk).</p>' . n
         . ']]></item>' . n
 
+        . '        <item id="far_connect_delay_trap" title="Delay trap"><![CDATA[' . n
+        . '<h2>Delay trap</h2>' . n
+        . '<p>Adds a hidden field to the form via JavaScript after a short delay. Any submission received before the field appears will be missing the expected value and rejected by com_connect.</p>' . n
+        . '<p>This catches automated bots that submit forms immediately without waiting for the page to fully load. Real users typically take longer than the delay to fill in a contact form.</p>' . n
+        . '<p>Set to <strong>Off</strong> to disable completely. No delayed field will be injected and no delay check will run.</p>' . n
+        . '<p>Requires com_connect 4.9.0 or later and JavaScript enabled in the browser. No-JS users are not affected — the field never appears for them and the check is skipped.</p>' . n
+        . ']]></item>' . n
+
+        . '        <item id="far_connect_delay_range" title="Delay range"><![CDATA[' . n
+        . '<h2>Delay range (seconds)</h2>' . n
+        . '<p>How long to wait before adding the hidden field to the form. Enter a fixed number (e.g. <code>5</code>) or a random range (e.g. <code>5-15</code>). A random range makes timing attacks harder to predict.</p>' . n
+        . '<p>Set this to longer than the fastest a real user could realistically submit the form. For a typical contact form with name, email, and message fields, 5–15 seconds is a reasonable default.</p>' . n
+        . ']]></item>' . n
+
         . '        <item id="far_connect_css_inject" title="Injection method"><![CDATA[' . n
         . '<h2>Injection method</h2>' . n
         . '<p><strong>Automatic</strong> (recommended) writes a <code>&lt;link rel="stylesheet"&gt;</code> tag directly into the form HTML on the server. Works on all themes with no template changes. Use this unless it does not work for your setup.</p>' . n
@@ -1725,6 +1802,11 @@ function far_connect_step_save()
     // Honeypot spam filter.
     set_pref('far_connect_honeypot', ps('far_connect_honeypot') ? '1' : '0');
 
+    // Delay trap.
+    set_pref('far_connect_delay_trap', ps('far_connect_delay_trap') ? '1' : '0');
+    $delay_range = trim(ps('far_connect_delay_range'));
+    set_pref('far_connect_delay_range', preg_match('/^\d+(-\d+)?$/', $delay_range) ? $delay_range : '5-15');
+
     // Save either/or rules as JSON.
     $classes = ps('far_eitheror_class');
     $fields  = ps('far_eitheror_fields');
@@ -1756,7 +1838,7 @@ function far_connect_step_list()
         $pophelp_content = file_get_contents($pophelp_path);
         if (strpos($pophelp_content, 'Automatic') === false
             || strpos($pophelp_content, 'Deferred') === false
-            || strpos($pophelp_content, 'com_connect_expect') === false) {
+            || strpos($pophelp_content, 'far_connect_delay_trap') === false) {
             far_connect_install_pophelp();
         }
     }
@@ -1789,6 +1871,8 @@ function far_connect_step_list()
     $hc_secret        = get_pref('far_connect_hcaptcha_secret_key', '');
     $honeypot             = (bool) get_pref('far_connect_honeypot', '1');
     $honeypot_field_label = get_pref('far_connect_honeypot_field_label', 'Referral code');
+    $delay_trap           = (bool) get_pref('far_connect_delay_trap', '0');
+    $delay_range          = get_pref('far_connect_delay_range', '5-15');
 
     // Connection status badges.
     $resend_status = '';
@@ -1879,6 +1963,13 @@ function far_connect_step_list()
         . 'if($captSel.length){'
         .   'farComToggle("far-com-captcha-",["turnstile","recaptcha","hcaptcha"],$captSel.val());'
         .   '$captSel.change(function(){farComToggle("far-com-captcha-",["turnstile","recaptcha","hcaptcha"],$(this).val());});'
+        . '}'
+        . 'var $delayOn=$("#far_connect_delay_trap-1");'
+        . 'var $delayOff=$("#far_connect_delay_trap-0");'
+        . 'if($delayOn.length){'
+        .   'if($delayOff.prop("checked")){$(".far-com-delay-range").hide();}else{$(".far-com-delay-range").show();}'
+        .   '$delayOff.click(function(){$(".far-com-delay-range").hide();});'
+        .   '$delayOn.click(function(){$(".far-com-delay-range").show();});'
         . '}'
         . 'var addLink=document.getElementById("far-com-add-rule");'
         . 'var table=document.getElementById("far-com-eitheror-table");'
@@ -2015,10 +2106,15 @@ function far_connect_step_list()
                 'far_connect_honeypot_label', '', true) .
               $field('far_connect_honeypot_field_label',
                 fInput('text', 'far_connect_honeypot_field_label', $honeypot_field_label, '', '', '', INPUT_REGULAR, 'far_connect_honeypot_field_label'),
-                null, '', true)
+                null, '', true) .
+              $field('far_connect_delay_trap',
+                Txp::get('\Textpattern\UI\OnOffRadioSet', 'far_connect_delay_trap', $delay_trap ? '1' : '0'),
+                'far_connect_delay_trap_label', '', true) .
+              $field('far_connect_delay_range',
+                fInput('text', 'far_connect_delay_range', $delay_range, '', '', '', INPUT_SMALL, 'far_connect_delay_range'),
+                'far_connect_delay_trap_range_label', 'far-com-delay-range', true)
             : tag(
-                tag(gTxt('far_connect_honeypot_label'), 'span') .
-                tag(gTxt('far_connect_honeypot_unavailable'), 'span', array('class' => 'txp-form-field-instructions')),
+                tag(gTxt('far_connect_spam_unavailable'), 'p', array('class' => 'txp-form-field-instructions')),
                 'div', array('class' => 'txp-form-field', 'style' => 'opacity:0.5')
             )
         ) .
