@@ -4,7 +4,7 @@ A [Textpattern CMS](https://textpattern.com) plugin that extends [com_connect](h
 
 ## Features
 
-- **Mail delivery** — send form submissions through [Resend](https://resend.com), [Brevo](https://brevo.com), or SMTP (routes com_connect through TXP's mail adapter, enabling SMTP delivery that com_connect does not support natively)
+- **Mail delivery** — send form submissions through [Resend](https://resend.com), [Brevo](https://brevo.com), or SMTP (routes com_connect through TXP's mail adapter, enabling SMTP delivery that com_connect does not support natively). File attachments from `com_connect_file` are forwarded automatically
 - **Spam protection** — honeypot field, captcha (Cloudflare Turnstile, Google reCAPTCHA v3, hCaptcha), or both together. Works without JavaScript: the captcha is skipped and the honeypot protects the form
 - **Form validation** — either/or rules that require at least one of a set of fields to be filled before the form can submit
 
@@ -67,6 +67,10 @@ Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on
 ---
 
 ## Changelog
+
+### 0.1.7-beta
+
+- Added: File attachment support. Files uploaded via `com_connect_file` are forwarded as attachments when mail is sent through Resend or Brevo. Temp files are cleaned up after delivery. SMTP delivery passes attachments through TXP's native mail adapter, which handles them when PHPMailer is enabled.
 
 ### 0.1.6-beta
 

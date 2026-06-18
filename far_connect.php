@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.6-beta';
+$plugin['version']     = '0.1.7-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -327,6 +327,10 @@ Do not disable the plugin before deleting it. If the plugin is disabled when del
 Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
 
 h2. Changelog
+
+h3. 0.1.7-beta
+
+* Added: File attachment support. Files uploaded via @com_connect_file@ are forwarded as attachments when mail is sent through Resend or Brevo. Temp files are cleaned up after delivery. SMTP delivery passes attachments through TXP's native mail adapter, which handles them when PHPMailer is enabled.
 
 h3. 0.1.6-beta
 
@@ -683,12 +687,29 @@ function far_connect_deliver($event, $step, &$payload)
 
     $reply_to = !empty($headers['reply']) ? $headers['reply'] : null;
 
+    $fields = $payload['fields'] ?? [];
+    $attachments = [];
+    foreach ($fields as $key => $fileInfo) {
+        if (strpos($key, 'com_connect_file_') === 0 && !empty($fileInfo['filepath']) && is_readable($fileInfo['filepath'])) {
+            $attachments[] = [
+                'filename' => $fileInfo['name'] ?? basename($fileInfo['filepath']),
+                'content'  => base64_encode(file_get_contents($fileInfo['filepath'])),
+                'filepath' => $fileInfo['filepath'],
+            ];
+        }
+    }
+
     $result = far_connect_mail_send([
-        'to'       => $to,
-        'subject'  => $subject,
-        'text'     => $body,
-        'reply_to' => $reply_to,
+        'to'          => $to,
+        'subject'     => $subject,
+        'text'        => $body,
+        'reply_to'    => $reply_to,
+        'attachments' => $attachments ?: null,
     ]);
+
+    foreach ($attachments as $att) {
+        @unlink($att['filepath']);
+    }
 
     if ($result['ok']) {
         return 'comconnect.skip';
@@ -1188,13 +1209,22 @@ function far_connect_send_resend(array $p): array
 
     $from = $from_name ? "{$from_name} <{$from_email}>" : $from_email;
 
+    $resend_attachments = null;
+    if (!empty($p['attachments'])) {
+        $resend_attachments = array_map(fn($a) => [
+            'filename' => $a['filename'],
+            'content'  => $a['content'],
+        ], $p['attachments']);
+    }
+
     $body = array_filter([
-        'from'     => $from,
-        'to'       => (array) $p['to'],
-        'subject'  => $p['subject'] ?? '',
-        'text'     => $p['text']    ?? null,
-        'html'     => $p['html']    ?? null,
-        'reply_to' => !empty($p['reply_to']) ? (array) $p['reply_to'] : null,
+        'from'        => $from,
+        'to'          => (array) $p['to'],
+        'subject'     => $p['subject'] ?? '',
+        'text'        => $p['text']    ?? null,
+        'html'        => $p['html']    ?? null,
+        'reply_to'    => !empty($p['reply_to']) ? (array) $p['reply_to'] : null,
+        'attachments' => $resend_attachments,
     ], fn($v) => $v !== null);
 
     $ch = curl_init('https://api.resend.com/emails');
@@ -1277,15 +1307,24 @@ function far_connect_send_brevo(array $p): array
         $to_list[] = ['email' => trim($addr)];
     }
 
+    $brevo_attachments = null;
+    if (!empty($p['attachments'])) {
+        $brevo_attachments = array_map(fn($a) => [
+            'name'    => $a['filename'],
+            'content' => $a['content'],
+        ], $p['attachments']);
+    }
+
     $body = array_filter([
-        'sender'       => ['name' => $from_name, 'email' => $from_email],
-        'to'           => $to_list,
-        'subject'      => $p['subject']      ?? '',
-        'textContent'  => $p['text']         ?? null,
-        'htmlContent'  => $p['html']         ?? null,
-        'replyTo'      => !empty($p['reply_to'])
+        'sender'      => ['name' => $from_name, 'email' => $from_email],
+        'to'          => $to_list,
+        'subject'     => $p['subject']      ?? '',
+        'textContent' => $p['text']         ?? null,
+        'htmlContent' => $p['html']         ?? null,
+        'replyTo'     => !empty($p['reply_to'])
                             ? ['email' => is_array($p['reply_to']) ? reset($p['reply_to']) : $p['reply_to']]
                             : null,
+        'attachment'  => $brevo_attachments,
     ], fn($v) => $v !== null);
 
     $ch = curl_init('https://api.brevo.com/v3/smtp/email');

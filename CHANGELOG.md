@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7-beta
+
+- Added: File attachment support. Files uploaded via `com_connect_file` are forwarded as attachments when mail is sent through Resend or Brevo. Temp files are cleaned up after delivery. SMTP delivery passes attachments through TXP's native mail adapter, which handles them when PHPMailer is enabled.
+
 ## 0.1.6-beta
 
 - Added: Delay trap. A hidden field is added to the form via JavaScript after a configurable delay. Bots that submit before the delay passes are rejected by com_connect. Works alongside the honeypot for layered protection. Requires com_connect 4.9.0+.
