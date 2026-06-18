@@ -1917,24 +1917,24 @@ function far_connect_step_list()
     $resend_status = '';
     if (!empty($resend_key)) {
         if (!function_exists('curl_init')) {
-            $resend_status = '<span style="color:orange;">&#9888; cURL not available</span>';
+            $resend_status = '<span class="warning">&#9888; cURL not available</span>';
         } else {
             $r = far_connect_test_resend($resend_key);
             $resend_status = $r['ok']
-                ? '<span style="color:green;">&#10003; ' . gTxt('far_connect_api_key_valid') . '</span>'
-                : '<span style="color:red;">&#10007; ' . txpspecialchars($r['error']) . '</span>';
+                ? '<span class="success">&#10003; ' . gTxt('far_connect_api_key_valid') . '</span>'
+                : '<span class="error">&#10007; ' . txpspecialchars($r['error']) . '</span>';
         }
     }
 
     $brevo_status = '';
     if (!empty($brevo_key)) {
         if (!function_exists('curl_init')) {
-            $brevo_status = '<span style="color:orange;">&#9888; cURL not available</span>';
+            $brevo_status = '<span class="warning">&#9888; cURL not available</span>';
         } else {
             $r = far_connect_test_brevo($brevo_key);
             $brevo_status = $r['ok']
-                ? '<span style="color:green;">&#10003; ' . gTxt('far_connect_api_key_valid') . '</span>'
-                : '<span style="color:red;">&#10007; ' . txpspecialchars($r['error']) . '</span>';
+                ? '<span class="success">&#10003; ' . gTxt('far_connect_api_key_valid') . '</span>'
+                : '<span class="error">&#10007; ' . txpspecialchars($r['error']) . '</span>';
         }
     }
 
