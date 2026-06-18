@@ -68,6 +68,7 @@ far_connect_css_inject_none => Manual
 far_connect_auto_theme_label => Detect background color and apply light or dark styles?
 far_connect_honeypot_label => Honeypot spam filter
 far_connect_honeypot_field_label => Honeypot field label
+far_connect_honeypot_unavailable => Requires com_connect 4.9.0 or later. Please update com_connect to enable this feature.
 EOT;
 
 if (0) {
@@ -776,65 +777,38 @@ function far_connect_form_widget()
 }
 
 // Inject honeypot field into the form using com_connect's native expect system.
-// com_connect_verify() (hooked to comconnect.submit) rejects any submission
-// where the honeypot field is filled. We only inject if the admin toggle is on
-// AND the form does not already have a com_connect_expect entry for our field,
-// which means the site owner has added a manual honeypot using the same name.
+// Requires com_connect 4.9.0+ which introduced com_connect_expect().
+// If that version is not installed, injection is silently skipped and the admin
+// panel shows a notice instead of the honeypot fields.
 register_callback('far_connect_honeypot_field', 'comconnect.form');
 
 function far_connect_honeypot_field()
 {
     global $com_connect_expect;
 
-    if (!get_pref('far_connect_honeypot', '0')) {
+    if (!function_exists('com_connect_expect') || !get_pref('far_connect_honeypot', '0')) {
         return '';
     }
 
     $field_name = 'far_hp';
 
-    // Skip if a manual honeypot with the same name already exists in this form.
+    // Skip if the form already has a manual honeypot with the same field name.
     if (is_array($com_connect_expect) && array_key_exists($field_name, $com_connect_expect)) {
         return '';
     }
 
     $label = get_pref('far_connect_honeypot_field_label', 'Referral code');
 
-    // Register the field in com_connect's expect system (value=null means "must
-    // be empty"). com_connect_verify() checks this on submit and calls
-    // add_comconnect_status(1) if the field is filled, blocking the submission.
-    // We set the global directly rather than calling com_connect_expect() to
-    // avoid a fatal error on older installs where the function may not exist.
-    $com_connect_expect[$field_name] = null;
-
-    // Render the hidden input. We use com_connect_text() if available (registers
-    // the field value via com_connect_store so it participates fully in the
-    // com_connect lifecycle), otherwise fall back to plain HTML.
-    if (function_exists('com_connect_text')) {
-        return com_connect_text(array(
-            'hidden'       => '',
-            'label'        => $label,
-            'name'         => $field_name,
-            'required'     => '0',
-            'autocomplete' => 'off',
-            'tabindex'     => '-1',
-        ));
-    }
-
-    return tag(
-        tag(txpspecialchars($label), 'label', array('for' => 'far-hp')) .
-        tag_void('input', array(
-            'type'         => 'text',
-            'id'           => 'far-hp',
-            'name'         => $field_name,
-            'value'        => '',
-            'tabindex'     => '-1',
-            'autocomplete' => 'off',
-        )),
-        'div', array(
-            'style'       => 'position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden',
-            'aria-hidden' => 'true',
-        )
-    );
+    return com_connect_text(array(
+        'hidden'       => '',
+        'label'        => $label,
+        'name'         => $field_name,
+        'required'     => '0',
+        'autocomplete' => 'off',
+        'tabindex'     => '-1',
+    )) . com_connect_expect(array(
+        'name' => $field_name,
+    ));
 }
 
 
@@ -2035,13 +2009,19 @@ function far_connect_step_list()
             fInput('password', 'far_connect_hcaptcha_secret_key', $hc_secret, '', '', '', INPUT_REGULAR, 'far_connect_hcaptcha_secret_key'),
             'far_connect_hcaptcha_secret_key', 'far-com-captcha-hcaptcha', true) .
 
-        $field('far_connect_honeypot',
-            Txp::get('\Textpattern\UI\OnOffRadioSet', 'far_connect_honeypot', $honeypot ? '1' : '0'),
-            'far_connect_honeypot_label', '', true) .
-
-        $field('far_connect_honeypot_field_label',
-            fInput('text', 'far_connect_honeypot_field_label', $honeypot_field_label, '', '', '', INPUT_REGULAR, 'far_connect_honeypot_field_label'),
-            null, '', true) .
+        (function_exists('com_connect_expect')
+            ? $field('far_connect_honeypot',
+                Txp::get('\Textpattern\UI\OnOffRadioSet', 'far_connect_honeypot', $honeypot ? '1' : '0'),
+                'far_connect_honeypot_label', '', true) .
+              $field('far_connect_honeypot_field_label',
+                fInput('text', 'far_connect_honeypot_field_label', $honeypot_field_label, '', '', '', INPUT_REGULAR, 'far_connect_honeypot_field_label'),
+                null, '', true)
+            : tag(
+                tag(gTxt('far_connect_honeypot_label'), 'span') .
+                tag(gTxt('far_connect_honeypot_unavailable'), 'span', array('class' => 'txp-form-field-instructions')),
+                'div', array('class' => 'txp-form-field', 'style' => 'opacity:0.5')
+            )
+        ) .
 
         tag_end('section') .
 
