@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.7-beta';
+$plugin['version']     = '0.1.8-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -36,8 +36,7 @@ far_connect_not_configured_email => From email is not configured.
 far_connect_eitheror_section => Form Validation
 far_connect_eitheror_class => Form Class
 far_connect_eitheror_fields => Either/Or Fields
-far_connect_eitheror_add => Add Rule
-far_connect_eitheror_remove => Remove rule
+far_connect_eitheror_add => New Rule
 far_connect_eitheror_msg => Please fill in at least one of: {fields}.
 far_connect_eitheror_legend => Fields marked * are required. Fields marked † require at least one to be filled.
 far_connect_required_legend => Fields marked * are required.
@@ -327,6 +326,13 @@ Do not disable the plugin before deleting it. If the plugin is disabled when del
 Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
 
 h2. Changelog
+
+h3. 0.1.8-beta
+
+* Changed: Either/or rules table now follows Textpattern's native list table pattern exactly. Rows use checkboxes with a select-all in the header, and a @div.multi-edit@ bar below with a dropdown and Go button for bulk delete. The × remove button is gone.
+* Changed: "Add Rule" button renamed to "New Rule" and moved above the table, matching TXP's @txp-control-panel@ pattern.
+* Fixed: Spam Protection unavailability notice now uses the HTML @inert@ attribute for dimming instead of an inline @opacity@ style.
+* Fixed: API key status indicators now use TXP's @success@, @error@, and @warning@ CSS classes instead of inline colour styles.
 
 h3. 0.1.7-beta
 
@@ -1884,6 +1890,7 @@ function far_connect_step_list()
 
     pagetop(gTxt('far_connect_settings_title'));
 
+
     if (gps('saved')) {
         echo announce(gTxt('far_connect_saved'));
     }
@@ -1970,9 +1977,16 @@ function far_connect_step_list()
         .   'cls:'    . json_encode(gTxt('far_connect_eitheror_class'))        . ','
         .   'fld:'    . json_encode(gTxt('far_connect_eitheror_fields'))       . ','
         .   'clsA:'   . json_encode(gTxt('far_connect_eitheror_class_label'))  . ','
-        .   'fldA:'   . json_encode(gTxt('far_connect_eitheror_fields_label')) . ','
-        .   'remove:' . json_encode(gTxt('far_connect_eitheror_remove'))
+        .   'fldA:'   . json_encode(gTxt('far_connect_eitheror_fields_label'))
         . '};'
+        . 'function farComUpdateSelection(){'
+        .   'var checks=$("#far-com-eitheror-table input[name=\"far_rule_selected[]\"]");'
+        .   'var n=checks.filter(":checked").length;'
+        .   'var $opt=$("#far-com-rule-action option:first");'
+        .   '$opt.text($opt.text().replace(/\\d+/,n));'
+        .   'var $all=$("#far-com-select-all");'
+        .   'if(checks.length&&n===checks.length){$all.prop("indeterminate",false).prop("checked",true);}else if(n){$all.prop("indeterminate",true);}else{$all.prop("indeterminate",false).prop("checked",false);}'
+        . '}'
         . 'function farComToggle(pfx,groups,val){'
         .   'groups.forEach(function(p){'
         .     'if(p===val){$("."+pfx+p).show();}else{$("."+pfx+p).hide();}'
@@ -1981,9 +1995,10 @@ function far_connect_step_list()
         . 'function farComBuildRow(idx){'
         .   'var tr=document.createElement("tr");'
         .   'tr.innerHTML='
-        .     '"<td><input type=\"text\" id=\"far-com-cls-"+idx+"\" name=\"far_eitheror_class[]\" aria-label=\""+farComL10n.cls+" "+(idx+1)+"\"></td>'
-        .     '<td><input type=\"text\" id=\"far-com-fld-"+idx+"\" name=\"far_eitheror_fields[]\" aria-label=\""+farComL10n.fld+" "+(idx+1)+"\"></td>'
-        .     '<td><button type=\"button\" class=\"far-com-remove-rule\" aria-label=\""+farComL10n.remove+"\">&#10005;</button></td>";'
+        .     '"<td class=\"txp-list-col-multi-edit\"><input type=\"checkbox\" name=\"far_rule_selected[]\" id=\"far-com-rule-check-"+idx+"\"></td>'
+        .     '<td><input type=\"text\" size=\"32\" id=\"far-com-cls-"+idx+"\" name=\"far_eitheror_class[]\" aria-label=\""+farComL10n.cls+" "+(idx+1)+"\"></td>'
+        .     '<td><input type=\"text\" size=\"32\" id=\"far-com-fld-"+idx+"\" name=\"far_eitheror_fields[]\" aria-label=\""+farComL10n.fld+" "+(idx+1)+"\"></td>";'
+        .   '$(tr).find("input[type=checkbox]").on("change",farComUpdateSelection);'
         .   'return tr;'
         . '}'
         . 'var $mailSel=$("#far_connect_mail_provider");'
@@ -2019,16 +2034,24 @@ function far_connect_step_list()
         .     'var idx="new-"+tbody.rows.length;'
         .     'var row=farComBuildRow(idx);'
         .     'tbody.appendChild(row);'
-        .     'row.querySelector("input").focus();'
+        .     'row.querySelector("input[type=text]").focus();'
         .   '});'
         . '}'
-        . 'if(table){'
-        .   'table.addEventListener("click",function(e){'
-        .     'if(e.target.classList.contains("far-com-remove-rule")){'
-        .       'e.target.closest("tr").remove();'
-        .     '}'
-        .   '});'
-        . '}',
+        . '$(document).on("change","#far-com-eitheror-table input[name=\"far_rule_selected[]\"]",farComUpdateSelection);'
+        . '$("#far-com-select-all").on("change",function(){'
+        .   'var checked=$(this).prop("checked");'
+        .   '$("#far-com-eitheror-table input[name=\"far_rule_selected[]\"]").prop("checked",checked);'
+        .   'farComUpdateSelection();'
+        . '});'
+        . '$("#far-com-connect-form").on("submit",function(e){'
+        .   'if($("#far-com-rule-action").val()==="delete"){'
+        .     'e.preventDefault();'
+        .     '$("#far-com-eitheror-table input[name=\"far_rule_selected[]\"]:checked").closest("tr").remove();'
+        .     '$("#far-com-select-all").prop("checked",false).prop("indeterminate",false);'
+        .     '$("#far-com-rule-action").val("");'
+        .     'farComUpdateSelection();'
+        .   '}'
+        . '});',
     false, true);
 
     $token = function($pane) {
@@ -2154,7 +2177,7 @@ function far_connect_step_list()
                 'far_connect_delay_trap_range_label', 'far-com-delay-range', true)
             : tag(
                 tag(gTxt('far_connect_spam_unavailable'), 'p', array('class' => 'txp-form-field-instructions')),
-                'div', array('class' => 'txp-form-field', 'style' => 'opacity:0.5')
+                'div', array('class' => 'txp-form-field', 'inert' => 'inert')
             )
         ) .
 
@@ -2186,12 +2209,18 @@ function far_connect_step_list()
             'far_connect_auto_markers_label', '', true) .
 
         $field('far_connect_eitheror_rules',
+            n . tag(
+                tag(gTxt('far_connect_eitheror_add'), 'button', array('type' => 'button', 'id' => 'far-com-add-rule', 'class' => 'txp-button')),
+            'div', array('class' => 'txp-control-panel')) .
             tag(
-                '<colgroup><col style="width:42%"><col style="width:42%"><col style="width:16%"></colgroup>' .
+                tag(
                 tag(tag(
+                    hCell(
+                        fInput('checkbox', array('name' => 'far_select_all', 'id' => 'far-com-select-all', 'aria-label' => gTxt('toggle_all_selected')), 0),
+                        '', ' class="txp-list-col-multi-edit" scope="col"'
+                    ) .
                     tag(gTxt('far_connect_eitheror_class'),  'th', array('scope' => 'col')) .
-                    tag(gTxt('far_connect_eitheror_fields'), 'th', array('scope' => 'col')) .
-                    '<th scope="col"></th>',
+                    tag(gTxt('far_connect_eitheror_fields'), 'th', array('scope' => 'col')),
                 'tr'), 'thead') .
                 tag(
                     n . (function() use ($eitheror_rules) {
@@ -2200,16 +2229,24 @@ function far_connect_step_list()
                             $ci = 'far-com-cls-' . $i;
                             $fi = 'far-com-fld-' . $i;
                             $rows .= tag(
+                                td(fInput('checkbox', 'far_rule_selected[]', $i, '', '', '', '', '', 'far-com-rule-check-' . $i, '', ''), 'txp-list-col-multi-edit') .
                                 td(fInput('text', 'far_eitheror_class[]',  $rule['class']  ?? '', '', '', '', INPUT_REGULAR, $ci, '', '', 'aria-label="' . gTxt('far_connect_eitheror_class')  . ' ' . ($i+1) . '"')) .
-                                td(fInput('text', 'far_eitheror_fields[]', $rule['fields'] ?? '', '', '', '', INPUT_REGULAR, $fi, '', '', 'aria-label="' . gTxt('far_connect_eitheror_fields') . ' ' . ($i+1) . '"')) .
-                                td(tag('&#10005;', 'button', array('type' => 'button', 'class' => 'far-com-remove-rule', 'aria-label' => gTxt('far_connect_eitheror_remove')))),
+                                td(fInput('text', 'far_eitheror_fields[]', $rule['fields'] ?? '', '', '', '', INPUT_REGULAR, $fi, '', '', 'aria-label="' . gTxt('far_connect_eitheror_fields') . ' ' . ($i+1) . '"')),
                             'tr');
                         }
                         return $rows;
                     })() . n,
                 'tbody'),
-            'table', array('id' => 'far-com-eitheror-table', 'style' => 'table-layout:fixed;width:100%')) .
-            graf(tag('+ ' . gTxt('far_connect_eitheror_add'), 'button', array('type' => 'button', 'id' => 'far-com-add-rule'))),
+            'table', array('id' => 'far-com-eitheror-table', 'class' => 'txp-list')),
+            'div', array('class' => 'txp-listtables', 'tabindex' => 0)) .
+            n . tag(
+                tag(gTxt('bulk_edit'), 'label', array('class' => 'txp-accessibility', 'for' => 'far-com-rule-action')) .
+                tag(
+                    tag(gTxt('with_selected_option', array('{count}' => '0')), 'option', array('value' => '')) .
+                    tag(gTxt('delete'), 'option', array('value' => 'delete')),
+                'select', array('id' => 'far-com-rule-action', 'name' => 'far_rule_action')) .
+                fInput('submit', '', gTxt('go')),
+            'div', array('class' => 'multi-edit')),
             'far_connect_eitheror_rules_label', '', true) .
 
         tag_end('section') .   // close Form Validation

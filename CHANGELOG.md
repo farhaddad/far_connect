@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8-beta
+
+- Changed: Either/or rules table now follows Textpattern's native list table pattern exactly. Rows use checkboxes with a select-all in the header, and a `multi-edit` bar below with a dropdown and Go button for bulk delete. The × remove button is gone.
+- Changed: "Add Rule" button renamed to "New Rule" and moved above the table, matching TXP's `txp-control-panel` pattern.
+- Fixed: Spam Protection unavailability notice now uses the HTML `inert` attribute for dimming instead of an inline `opacity` style.
+- Fixed: API key status indicators now use TXP's `success`, `error`, and `warning` CSS classes instead of inline colour styles.
+
 ## 0.1.7-beta
 
 - Added: File attachment support. Files uploaded via `com_connect_file` are forwarded as attachments when mail is sent through Resend or Brevo. Temp files are cleaned up after delivery. SMTP delivery passes attachments through TXP's native mail adapter, which handles them when PHPMailer is enabled.
