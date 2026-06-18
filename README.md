@@ -71,6 +71,11 @@ Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on
 
 ## Changelog
 
+### 0.2.0-beta
+
+- Removed: Reset to defaults button. Textpattern's plugin lifecycle already runs the uninstaller automatically when the plugin is deleted, making the button redundant.
+- Changed: Uninstalling section in help doc simplified to reflect that deletion alone is sufficient.
+
 ### 0.1.9-beta
 
 - Changed: Honeypot and delay trap settings are now silently hidden when com_connect older than 4.9.0 is installed, instead of showing a grayed-out unavailability notice.

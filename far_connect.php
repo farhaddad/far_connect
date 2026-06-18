@@ -4,7 +4,7 @@
 // https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 $plugin['name']        = 'far_connect';
-$plugin['version']     = '0.1.9-beta';
+$plugin['version']     = '0.2.0-beta';
 $plugin['author']      = 'Farhan Haddad';
 $plugin['author_uri']  = 'https://farhan.design';
 $plugin['description'] = 'Mail delivery and captcha addon for com_connect';
@@ -55,9 +55,6 @@ far_connect_provider_turnstile => Cloudflare Turnstile
 far_connect_provider_recaptcha => Google reCAPTCHA v3
 far_connect_provider_hcaptcha => hCaptcha
 far_connect_saved => Settings saved.
-far_connect_reset => Reset to defaults
-far_connect_reset_confirm => This will permanently delete all settings and the far_connect stylesheet. Use this before deleting the plugin. Are you sure?
-far_connect_reset_done => All settings and the stylesheet have been reset to defaults.
 far_connect_nav_label => Settings
 far_connect_stylesheet_section => Stylesheet
 far_connect_css_inject => Injection method
@@ -317,16 +314,17 @@ Go to *Extensions › Far Connect* and click *Save* once. This refreshes the sty
 
 h2. Uninstalling
 
-# Go to *Extensions › Far Connect*.
-# Click *Reset to defaults* (beside the Save button). This clears all settings and the far_connect stylesheet from the database.
 # Go to *Admin › Plugins*.
 # Delete the plugin.
 
-Do not disable the plugin before deleting it. If the plugin is disabled when deleted, the automatic uninstaller will not run. The *Reset to defaults* button works regardless of plugin state and is the recommended way to ensure a clean removal.
-
-Alternatively, deleting the plugin while it is still *active* (enabled) will trigger the uninstaller automatically without needing to reset first.
+The uninstaller runs automatically and removes all settings and the far_connect stylesheet from the database.
 
 h2. Changelog
+
+h3. 0.2.0-beta
+
+* Removed: Reset to defaults button. Textpattern's plugin lifecycle already runs the uninstaller automatically when the plugin is deleted, making the button redundant.
+* Changed: Uninstalling section in help doc simplified to reflect that deletion alone is sufficient.
 
 h3. 0.1.9-beta
 
@@ -1797,25 +1795,11 @@ function far_connect_panel($event, $step)
         'save'  => true,
     ];
 
-    // Both Save and Reset submit to step=save; reset is detected by its named button.
-    if ($step === 'save' && gps('far_do_reset')) {
-        far_connect_step_reset();
-        return;
-    }
-
     if (!$step || !bouncer($step, $available_steps)) {
         $step = 'list';
     }
 
     call_user_func('far_connect_step_' . $step);
-}
-
-function far_connect_step_reset()
-{
-    far_connect_uninstall();
-    far_connect_install();
-    header('Location: index.php?event=far_connect&reset=1');
-    exit;
 }
 
 function far_connect_step_save()
@@ -1899,10 +1883,6 @@ function far_connect_step_list()
 
     if (gps('saved')) {
         echo announce(gTxt('far_connect_saved'));
-    }
-
-    if (gps('reset')) {
-        echo announce(gTxt('far_connect_reset_done'));
     }
 
     $mail_provider    = get_pref('far_connect_mail_provider', 'smtp');
@@ -2103,8 +2083,7 @@ function far_connect_step_list()
             'far_connect_nav_label'
         ) .
         graf(
-            fInput('submit', 'Submit', gTxt('save'), 'publish') . sp . sp .
-            fInput('submit', 'far_do_reset', gTxt('far_connect_reset'), '', '', 'return verify(\'' . escape_js(gTxt('far_connect_reset_confirm')) . '\')'),
+            fInput('submit', 'Submit', gTxt('save'), 'publish'),
             array('class' => 'txp-save')
         ) .
         tag_end('div') .
