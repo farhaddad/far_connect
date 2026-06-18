@@ -799,21 +799,42 @@ function far_connect_honeypot_field()
 
     $label = get_pref('far_connect_honeypot_field_label', 'Referral code');
 
-    // com_connect_text renders the input and registers the field value via
-    // com_connect_store() on submission. com_connect_expect registers the field
-    // in $com_connect_expect with value=null, meaning "must be empty".
-    // com_connect_verify() (native to com_connect) checks all expected fields
-    // and calls add_comconnect_status(1) if any are filled, blocking the submit.
-    return com_connect_text(array(
-        'hidden'       => '',
-        'label'        => $label,
-        'name'         => $field_name,
-        'required'     => '0',
-        'autocomplete' => 'off',
-        'tabindex'     => '-1',
-    )) . com_connect_expect(array(
-        'name' => $field_name,
-    ));
+    // Register the field in com_connect's expect system (value=null means "must
+    // be empty"). com_connect_verify() checks this on submit and calls
+    // add_comconnect_status(1) if the field is filled, blocking the submission.
+    // We set the global directly rather than calling com_connect_expect() to
+    // avoid a fatal error on older installs where the function may not exist.
+    $com_connect_expect[$field_name] = null;
+
+    // Render the hidden input. We use com_connect_text() if available (registers
+    // the field value via com_connect_store so it participates fully in the
+    // com_connect lifecycle), otherwise fall back to plain HTML.
+    if (function_exists('com_connect_text')) {
+        return com_connect_text(array(
+            'hidden'       => '',
+            'label'        => $label,
+            'name'         => $field_name,
+            'required'     => '0',
+            'autocomplete' => 'off',
+            'tabindex'     => '-1',
+        ));
+    }
+
+    return tag(
+        tag(txpspecialchars($label), 'label', array('for' => 'far-hp')) .
+        tag_void('input', array(
+            'type'         => 'text',
+            'id'           => 'far-hp',
+            'name'         => $field_name,
+            'value'        => '',
+            'tabindex'     => '-1',
+            'autocomplete' => 'off',
+        )),
+        'div', array(
+            'style'       => 'position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden',
+            'aria-hidden' => 'true',
+        )
+    );
 }
 
 
