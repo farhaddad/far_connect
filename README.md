@@ -56,6 +56,10 @@ Full documentation is available in the plugin's built-in help: click the **?** b
 
 Released under the [GNU General Public License v2.0](LICENSE).
 
+## Bug reports
+
+Found a bug? [Open an issue](https://github.com/farhaddad/far_connect/issues) on GitHub.
+
 ## Author
 
 [Farhan Haddad](https://farhan.design)
